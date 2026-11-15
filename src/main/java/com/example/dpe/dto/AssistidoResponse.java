@@ -12,6 +12,12 @@ public record AssistidoResponse(
         LocalDate dataNascimento,
         String telefonePrincipal,
         BigDecimal rendaMensal,
+        String email,
+        String nacionalidade,
+        Boolean situacaoDeRua,
+        EnderecoResponse endereco,
+        boolean ativo,
+        boolean aptoPeloCriterioDeRenda,
         LocalDateTime createdAt
 ) {
 }

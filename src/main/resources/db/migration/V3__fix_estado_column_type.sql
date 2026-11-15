@@ -1,0 +1,2 @@
+ALTER TABLE assistidos
+ALTER COLUMN estado TYPE VARCHAR(2);

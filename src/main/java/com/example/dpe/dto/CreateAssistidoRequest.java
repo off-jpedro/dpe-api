@@ -1,17 +1,26 @@
 package com.example.dpe.dto;
 
-import jakarta.validation.constraints.*;
+import com.example.dpe.validation.CPF;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+@com.example.dpe.validation.EnderecoObrigatorioQuandoNaoEstiverEmSituacaoDeRua
 public record CreateAssistidoRequest(
-        @NotBlank(message = "O campo {0} Não permite null,nem texto contendo apenas espaços")
+
+        @NotBlank
         @Size(max = 200)
         String nomeCompleto,
 
         @NotBlank
-        @Pattern(regexp = "\\d{11}", message = "CPF deve conter 11 dígitos")
+        @CPF
         String cpf,
 
         @NotNull
@@ -22,8 +31,23 @@ public record CreateAssistidoRequest(
         String telefonePrincipal,
 
         @NotNull
-        @DecimalMin(value = "0.00")
+        @DecimalMin("0.00")
         @Digits(integer = 10, fraction = 2)
-        BigDecimal rendaMensal
-) {
+        BigDecimal rendaMensal,
+
+        @Email
+        @Size(max = 254)
+        String email,
+
+        @NotBlank
+        @Size(max = 100)
+        String nacionalidade,
+
+        @NotNull
+        Boolean situacaoDeRua,
+
+        @Valid
+        EnderecoRequest endereco
+
+) implements AssistidoEnderecoRequest {
 }

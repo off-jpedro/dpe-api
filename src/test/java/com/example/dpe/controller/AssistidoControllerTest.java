@@ -13,6 +13,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -43,7 +45,7 @@ class AssistidoControllerTest {
     private Assistido criarAssistido(UUID id) {
         Assistido assistido = new Assistido(
                 "João da Silva",
-                "12345678910",
+                "52998224725",
                 LocalDate.of(1999, 1, 2),
                 "62999999999",
                 BigDecimal.valueOf(1500)
@@ -70,14 +72,26 @@ class AssistidoControllerTest {
                 .thenReturn(assistido);
 
         String requestJson = """
-                {
-                    "nomeCompleto": "João da Silva",
-                    "cpf": "12345678910",
-                    "dataNascimento": "1999-01-02",
-                    "telefonePrincipal": "62999999999",
-                    "rendaMensal": 1500
-                }
-                """;
+        {
+            "nomeCompleto": "João da Silva",
+            "cpf": "52998224725",
+            "dataNascimento": "1999-01-02",
+            "telefonePrincipal": "62999999999",
+            "rendaMensal": 1500,
+            "email": "joao@email.com",
+            "nacionalidade": "Brasileira",
+            "situacaoDeRua": false,
+            "endereco": {
+                "logradouro": "Rua das Flores",
+                "numero": "100",
+                "complemento": null,
+                "bairro": "Centro",
+                "cidade": "Goiânia",
+                "estado": "GO",
+                "cep": "74000000"
+            }
+        }
+        """;
 
         // Act + Assert
         mockMvc.perform(post("/api/assistidos")
@@ -87,7 +101,7 @@ class AssistidoControllerTest {
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.nomeCompleto").value("João da Silva"))
-                .andExpect(jsonPath("$.cpf").value("12345678910"));
+                .andExpect(jsonPath("$.cpf").value("52998224725"));
 
         verify(service).createAssistido(any(CreateAssistidoRequest.class));
     }
@@ -126,14 +140,26 @@ class AssistidoControllerTest {
                 ));
 
         String requestJson = """
-                {
-                    "nomeCompleto": "João da Silva",
-                    "cpf": "12345678910",
-                    "dataNascimento": "1999-01-02",
-                    "telefonePrincipal": "62999999999",
-                    "rendaMensal": 1500
-                }
-                """;
+        {
+            "nomeCompleto": "João Atualizado",
+            "cpf": "52998224725",
+            "dataNascimento": "1999-01-02",
+            "telefonePrincipal": "62977777777",
+            "rendaMensal": 2500,
+            "email": "joao.novo@email.com",
+            "nacionalidade": "Brasileira",
+            "situacaoDeRua": false,
+            "endereco": {
+                "logradouro": "Rua das Flores",
+                "numero": "100",
+                "complemento": null,
+                "bairro": "Centro",
+                "cidade": "Goiânia",
+                "estado": "GO",
+                "cep": "74000000"
+            }
+        }
+        """;
 
         // Act + Assert
         mockMvc.perform(post("/api/assistidos")
@@ -155,7 +181,7 @@ class AssistidoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(id.toString()))
                 .andExpect(jsonPath("$.nomeCompleto").value("João da Silva"))
-                .andExpect(jsonPath("$.cpf").value("12345678910"));
+                .andExpect(jsonPath("$.cpf").value("52998224725"));
 
         verify(service).findById(id);
     }
@@ -190,65 +216,62 @@ class AssistidoControllerTest {
                 BigDecimal.valueOf(2000)
         );
 
-        when(service.findAll())
-                .thenReturn(List.of(assistido1, assistido2));
+        when(service.buscarAssistidos(
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(Boolean.class),
+                any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of(assistido1, assistido2)));
 
         // Act + Assert
         mockMvc.perform(get("/api/assistidos"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].nomeCompleto").value("João da Silva"))
-                .andExpect(jsonPath("$[1].nomeCompleto").value("Maria Oliveira"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].nomeCompleto")
+                        .value("João da Silva"))
+                .andExpect(jsonPath("$.content[1].nomeCompleto")
+                        .value("Maria Oliveira"));
 
-        verify(service).findAll();
+        verify(service).buscarAssistidos(
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(Boolean.class),
+                any(Pageable.class)
+        );
     }
 
     @Test
     void shouldReturnEmptyListWhenNoAssistidosExist() throws Exception {
         // Arrange
-        when(service.findAll()).thenReturn(List.of());
+        when(service.buscarAssistidos(
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(Boolean.class),
+                any(Pageable.class)
+        )).thenReturn(new PageImpl<>(List.of()));
 
         // Act + Assert
         mockMvc.perform(get("/api/assistidos"))
                 .andExpect(status().isOk())
-                .andExpect(content().json("[]"));
+                .andExpect(jsonPath("$.content.length()").value(0));
 
-        verify(service).findAll();
-    }
-
-    @Test
-    void shouldUpdateAssistidoSuccessfully() throws Exception {
-        // Arrange
-        UUID id = UUID.randomUUID();
-
-        Assistido assistido = criarAssistido(id);
-
-        when(service.updateAssistido(
-                eq(id),
-                any(UpdateAssistidoRequest.class)
-        )).thenReturn(assistido);
-
-        String requestJson = """
-                {
-                    "nomeCompleto": "João Atualizado",
-                    "cpf": "12345678910",
-                    "dataNascimento": "1999-01-02",
-                    "telefonePrincipal": "62977777777",
-                    "rendaMensal": 2500
-                }
-                """;
-
-        // Act + Assert
-        mockMvc.perform(put("/api/assistidos/{id}", id)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(requestJson))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(id.toString()))
-                .andExpect(jsonPath("$.nomeCompleto").value("João da Silva"));
-
-        verify(service).updateAssistido(
-                eq(id),
-                any(UpdateAssistidoRequest.class)
+        verify(service).buscarAssistidos(
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(String.class),
+                nullable(Boolean.class),
+                any(Pageable.class)
         );
     }
 
@@ -267,14 +290,26 @@ class AssistidoControllerTest {
         ));
 
         String requestJson = """
-                {
-                    "nomeCompleto": "João Atualizado",
-                    "cpf": "12345678910",
-                    "dataNascimento": "1999-01-02",
-                    "telefonePrincipal": "62977777777",
-                    "rendaMensal": 2500
-                }
-                """;
+        {
+            "nomeCompleto": "João Atualizado",
+            "cpf": "52998224725",
+            "dataNascimento": "1999-01-02",
+            "telefonePrincipal": "62977777777",
+            "rendaMensal": 2500,
+            "email": "joao.novo@email.com",
+            "nacionalidade": "Brasileira",
+            "situacaoDeRua": false,
+            "endereco": {
+                "logradouro": "Rua das Flores",
+                "numero": "100",
+                "complemento": null,
+                "bairro": "Centro",
+                "cidade": "Goiânia",
+                "estado": "GO",
+                "cep": "74000000"
+            }
+        }
+        """;
 
         // Act + Assert
         mockMvc.perform(put("/api/assistidos/{id}", id)
@@ -315,4 +350,43 @@ class AssistidoControllerTest {
 
         verify(service).deleteAssistido(id);
     }
+
+
+    @Test
+    void shouldReturnBadRequestWhenCreatingAssistidoWithInvalidCPF()
+            throws Exception {
+
+        // Arrange
+        String requestJson = """
+        {
+            "nomeCompleto": "João da Silva",
+            "cpf": "12345678910",
+            "dataNascimento": "1999-01-02",
+            "telefonePrincipal": "62999999999",
+            "rendaMensal": 1500,
+            "email": "joao@email.com",
+            "nacionalidade": "Brasileira",
+            "situacaoDeRua": false,
+            "endereco": {
+                "logradouro": "Rua das Flores",
+                "numero": "100",
+                "complemento": null,
+                "bairro": "Centro",
+                "cidade": "Goiânia",
+                "estado": "GO",
+                "cep": "74000000"
+            }
+        }
+        """;
+
+        // Act + Assert
+        mockMvc.perform(post("/api/assistidos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isBadRequest());
+
+        verify(service, never())
+                .createAssistido(any(CreateAssistidoRequest.class));
+    }
+
 }

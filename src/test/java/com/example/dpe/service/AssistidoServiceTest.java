@@ -1,16 +1,25 @@
 package com.example.dpe.service;
 
+import com.example.dpe.config.RegrasAtendimentoProperties;
 import com.example.dpe.dto.CreateAssistidoRequest;
+import com.example.dpe.dto.EnderecoRequest;
 import com.example.dpe.dto.UpdateAssistidoRequest;
 import com.example.dpe.entity.Assistido;
 import com.example.dpe.exception.AssistidoNaoEncontradoException;
 import com.example.dpe.exception.CpfJaCadastradoException;
+import com.example.dpe.mapper.AssistidoMapper;
 import com.example.dpe.repository.AssistidoRepository;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -23,59 +32,62 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class AssistidoServiceTest {
+class AssistidoServiceTest {
 
     @Mock
     private AssistidoRepository repository;
 
-    @InjectMocks
     private AssistidoService service;
 
+    private final AssistidoMapper mapper = new AssistidoMapper();
+
+    private final RegrasAtendimentoProperties regras =
+            new RegrasAtendimentoProperties(new BigDecimal("1621.00"));
+
+    @BeforeEach
+    void setUp() {
+        service = new AssistidoService(repository, mapper, regras);
+    }
+
     @Test
-    void shouldCreateAssistidoSuccessfully(){
-        //Arrange
-        CreateAssistidoRequest assistidoRequest = new CreateAssistidoRequest(
-                "Name Teste",
-                "12335578910",
-                LocalDate.ofYearDay(1999,2),
-                "62999999999",
-                new BigDecimal(1500)
-        );
-        when(repository.existsByCpf(assistidoRequest.cpf()))
+    void shouldCreateAssistidoSuccessfully() {
+        // Arrange
+        CreateAssistidoRequest request = criarCreateRequest();
+
+        when(repository.existsByCpf(request.cpf()))
                 .thenReturn(false);
 
         when(repository.save(any(Assistido.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
-        Assistido result = service.createAssistido(assistidoRequest);
+        Assistido result = service.createAssistido(request);
 
         // Assert
         assertNotNull(result);
-        assertEquals("Name Teste", result.getNomeCompleto());
-        assertEquals("12335578910", result.getCpf());
+        assertEquals("João da Silva", result.getNomeCompleto());
+        assertEquals("12345678900", result.getCpf());
+        assertEquals("joao@email.com", result.getEmail());
+        assertEquals("Brasileira", result.getNacionalidade());
+        assertFalse(result.getSituacaoDeRua());
+        assertNotNull(result.getEndereco());
 
-        verify(repository).existsByCpf(assistidoRequest.cpf());
+        verify(repository).existsByCpf(request.cpf());
         verify(repository).save(any(Assistido.class));
     }
 
     @Test
-    void shouldNotCreateAssistidoWhenCpfAlreadyExists(){
-        //Arrange
-        CreateAssistidoRequest assistidoRequest = new CreateAssistidoRequest(
-                "Name Teste",
-                "12335578910",
-                LocalDate.ofYearDay(1999,2),
-                "62999999999",
-                new BigDecimal(1500)
-        );
-        when(repository.existsByCpf(assistidoRequest.cpf()))
+    void shouldNotCreateAssistidoWhenCpfAlreadyExists() {
+        // Arrange
+        CreateAssistidoRequest request = criarCreateRequest();
+
+        when(repository.existsByCpf(request.cpf()))
                 .thenReturn(true);
 
         // Act + Assert
         CpfJaCadastradoException exception = assertThrows(
                 CpfJaCadastradoException.class,
-                () -> service.createAssistido(assistidoRequest)
+                () -> service.createAssistido(request)
         );
 
         assertEquals(
@@ -83,7 +95,7 @@ public class AssistidoServiceTest {
                 exception.getMessage()
         );
 
-        verify(repository).existsByCpf(assistidoRequest.cpf());
+        verify(repository).existsByCpf(request.cpf());
         verify(repository, never()).save(any(Assistido.class));
     }
 
@@ -93,7 +105,7 @@ public class AssistidoServiceTest {
         UUID id = UUID.randomUUID();
         Assistido assistido = criarAssistido();
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.of(assistido));
 
         // Act
@@ -104,7 +116,7 @@ public class AssistidoServiceTest {
         assertEquals("João da Silva", result.getNomeCompleto());
         assertEquals("12345678910", result.getCpf());
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndAtivoTrue(id);
     }
 
     @Test
@@ -112,7 +124,7 @@ public class AssistidoServiceTest {
         // Arrange
         UUID id = UUID.randomUUID();
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.empty());
 
         // Act + Assert
@@ -121,11 +133,11 @@ public class AssistidoServiceTest {
                 () -> service.findById(id)
         );
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndAtivoTrue(id);
     }
 
     @Test
-    void shouldFindAllAssistidosSuccessfully() {
+    void shouldFindAssistidosSuccessfully() {
         // Arrange
         Assistido assistido1 = criarAssistido();
 
@@ -137,35 +149,81 @@ public class AssistidoServiceTest {
                 BigDecimal.valueOf(2000)
         );
 
-        when(repository.findAll())
-                .thenReturn(List.of(assistido1, assistido2));
+        Pageable pageable = PageRequest.of(0, 10);
+
+        Page<Assistido> page = new PageImpl<>(
+                List.of(assistido1, assistido2),
+                pageable,
+                2
+        );
+
+        when(repository.buscarAssistidos(
+                "",
+                "",
+                "",
+                "",
+                "",
+                null,
+                pageable
+        )).thenReturn(page);
 
         // Act
-        List<Assistido> result = service.findAll();
+        Page<Assistido> result = service.buscarAssistidos(
+                null, null, null, null, null, null, pageable
+        );
 
         // Assert
         assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals("João da Silva", result.get(0).getNomeCompleto());
-        assertEquals("Maria Oliveira", result.get(1).getNomeCompleto());
+        assertEquals(2, result.getTotalElements());
+        assertEquals(2, result.getContent().size());
+        assertEquals("João da Silva", result.getContent().get(0).getNomeCompleto());
+        assertEquals("Maria Oliveira", result.getContent().get(1).getNomeCompleto());
 
-        verify(repository).findAll();
+        verify(repository).buscarAssistidos(
+                "",
+                "",
+                "",
+                "",
+                "",
+                null,
+                pageable
+        );
     }
 
     @Test
-    void shouldReturnEmptyListWhenNoAssistidosExist() {
+    void shouldReturnEmptyPageWhenNoAssistidosExist() {
         // Arrange
-        when(repository.findAll())
-                .thenReturn(List.of());
+        Pageable pageable = PageRequest.of(0, 10);
+
+        when(repository.buscarAssistidos(
+                "",
+                "",
+                "",
+                "",
+                "",
+                null,
+                pageable
+        )).thenReturn(Page.empty());
 
         // Act
-        List<Assistido> result = service.findAll();
+        Page<Assistido> result = service.buscarAssistidos(
+                null, null, null, null, null, null, pageable
+        );
 
         // Assert
         assertNotNull(result);
         assertTrue(result.isEmpty());
+        assertEquals(0, result.getTotalElements());
 
-        verify(repository).findAll();
+        verify(repository).buscarAssistidos(
+                "",
+                "",
+                "",
+                "",
+                "",
+                null,
+                pageable
+        );
     }
 
     @Test
@@ -174,15 +232,12 @@ public class AssistidoServiceTest {
         UUID id = UUID.randomUUID();
         Assistido assistido = criarAssistido();
 
-        UpdateAssistidoRequest request = new UpdateAssistidoRequest(
+        UpdateAssistidoRequest request = criarUpdateRequest(
                 "João Atualizado",
-                "12345678910",
-                LocalDate.of(1999, 1, 2),
-                "62977777777",
-                BigDecimal.valueOf(2500)
+                "12345678910"
         );
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.of(assistido));
 
         when(repository.save(any(Assistido.class)))
@@ -197,8 +252,9 @@ public class AssistidoServiceTest {
         assertEquals("12345678910", result.getCpf());
         assertEquals("62977777777", result.getTelefonePrincipal());
         assertEquals(BigDecimal.valueOf(2500), result.getRendaMensal());
+        assertEquals("joao.novo@email.com", result.getEmail());
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndAtivoTrue(id);
         verify(repository, never()).existsByCpf(any());
         verify(repository).save(any(Assistido.class));
     }
@@ -209,15 +265,12 @@ public class AssistidoServiceTest {
         UUID id = UUID.randomUUID();
         Assistido assistido = criarAssistido();
 
-        UpdateAssistidoRequest request = new UpdateAssistidoRequest(
+        UpdateAssistidoRequest request = criarUpdateRequest(
                 "João Atualizado",
-                "98765432100",
-                LocalDate.of(1999, 1, 2),
-                "62977777777",
-                BigDecimal.valueOf(2500)
+                "98765432100"
         );
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.of(assistido));
 
         when(repository.existsByCpf(request.cpf()))
@@ -229,7 +282,7 @@ public class AssistidoServiceTest {
                 () -> service.updateAssistido(id, request)
         );
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndAtivoTrue(id);
         verify(repository).existsByCpf(request.cpf());
         verify(repository, never()).save(any(Assistido.class));
     }
@@ -239,15 +292,12 @@ public class AssistidoServiceTest {
         // Arrange
         UUID id = UUID.randomUUID();
 
-        UpdateAssistidoRequest request = new UpdateAssistidoRequest(
+        UpdateAssistidoRequest request = criarUpdateRequest(
                 "João Atualizado",
-                "98765432100",
-                LocalDate.of(1999, 1, 2),
-                "62977777777",
-                BigDecimal.valueOf(2500)
+                "98765432100"
         );
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.empty());
 
         // Act + Assert
@@ -256,7 +306,7 @@ public class AssistidoServiceTest {
                 () -> service.updateAssistido(id, request)
         );
 
-        verify(repository).findById(id);
+        verify(repository).findByIdAndAtivoTrue(id);
         verify(repository, never()).save(any(Assistido.class));
     }
 
@@ -266,15 +316,21 @@ public class AssistidoServiceTest {
         UUID id = UUID.randomUUID();
         Assistido assistido = criarAssistido();
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.of(assistido));
+
+        when(repository.save(any(Assistido.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
 
         // Act
         service.deleteAssistido(id);
 
         // Assert
-        verify(repository).findById(id);
-        verify(repository).delete(assistido);
+        assertFalse(assistido.isAtivo());
+
+        verify(repository).findByIdAndAtivoTrue(id);
+        verify(repository).save(assistido);
+        verify(repository, never()).delete(any(Assistido.class));
     }
 
     @Test
@@ -282,7 +338,7 @@ public class AssistidoServiceTest {
         // Arrange
         UUID id = UUID.randomUUID();
 
-        when(repository.findById(id))
+        when(repository.findByIdAndAtivoTrue(id))
                 .thenReturn(Optional.empty());
 
         // Act + Assert
@@ -291,8 +347,51 @@ public class AssistidoServiceTest {
                 () -> service.deleteAssistido(id)
         );
 
-        verify(repository).findById(id);
-        verify(repository, never()).delete(any(Assistido.class));
+        verify(repository).findByIdAndAtivoTrue(id);
+        verify(repository, never()).save(any(Assistido.class));
+    }
+
+    private CreateAssistidoRequest criarCreateRequest() {
+        return new CreateAssistidoRequest(
+                "João da Silva",
+                "12345678900",
+                LocalDate.of(1995, 5, 10),
+                "62999999999",
+                new BigDecimal("1500.00"),
+                "joao@email.com",
+                "Brasileira",
+                false,
+                criarEnderecoRequest()
+        );
+    }
+
+    private UpdateAssistidoRequest criarUpdateRequest(
+            String nome,
+            String cpf
+    ) {
+        return new UpdateAssistidoRequest(
+                nome,
+                cpf,
+                LocalDate.of(1999, 1, 2),
+                "62977777777",
+                BigDecimal.valueOf(2500),
+                "joao.novo@email.com",
+                "Brasileira",
+                false,
+                criarEnderecoRequest()
+        );
+    }
+
+    private EnderecoRequest criarEnderecoRequest() {
+        return new EnderecoRequest(
+                "Rua das Flores",
+                "100",
+                null,
+                "Centro",
+                "Goiânia",
+                "GO",
+                "74000000"
+        );
     }
 
     private Assistido criarAssistido() {

@@ -7,17 +7,21 @@ import com.example.dpe.entity.Assistido;
 import com.example.dpe.mapper.AssistidoMapper;
 import com.example.dpe.service.AssistidoService;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/assistidos")
 public class AssistidoController {
+
     private final AssistidoService service;
     private final AssistidoMapper mapper;
 
@@ -35,7 +39,10 @@ public class AssistidoController {
     ) {
         Assistido assistido = service.createAssistido(request);
 
-        AssistidoResponse response = mapper.toResponse(assistido);
+        AssistidoResponse response = mapper.toResponse(
+                assistido,
+                service.isAptoPeloCriterioDeRenda(assistido.getRendaMensal())
+        );
 
         URI location = ServletUriComponentsBuilder
                 .fromCurrentRequest()
@@ -50,17 +57,57 @@ public class AssistidoController {
     public ResponseEntity<AssistidoResponse> findById(
             @PathVariable UUID id
     ) {
-            Assistido assistido = service.findById(id);
-             AssistidoResponse response = mapper.toResponse(assistido);
-             return ResponseEntity.ok(response);
+        Assistido assistido = service.findById(id);
+
+        AssistidoResponse response = mapper.toResponse(
+                assistido,
+                service.isAptoPeloCriterioDeRenda(assistido.getRendaMensal())
+        );
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping
-    public ResponseEntity<List<AssistidoResponse>> findAll() {
-        List<Assistido> assistidos = service.findAll();
-        List<AssistidoResponse> response = assistidos.stream()
-                .map(mapper::toResponse)
-                .toList();
+    public ResponseEntity<Page<AssistidoResponse>> buscarAssistidos(
+
+            @RequestParam(required = false) String nome,
+
+            @RequestParam(required = false) String cpf,
+
+            @RequestParam(required = false) String email,
+
+            @RequestParam(required = false) String nacionalidade,
+
+            @RequestParam(required = false) String cidade,
+
+            @RequestParam(required = false) Boolean situacaoDeRua,
+
+            @PageableDefault(
+                    size = 10,
+                    sort = "nomeCompleto",
+                    direction = Sort.Direction.ASC
+            ) Pageable pageable
+
+    ) {
+        Page<Assistido> pagina = service.buscarAssistidos(
+                nome,
+                cpf,
+                email,
+                nacionalidade,
+                cidade,
+                situacaoDeRua,
+                pageable
+        );
+
+        Page<AssistidoResponse> response = pagina.map(assistido ->
+                mapper.toResponse(
+                        assistido,
+                        service.isAptoPeloCriterioDeRenda(
+                                assistido.getRendaMensal()
+                        )
+                )
+        );
+
         return ResponseEntity.ok(response);
     }
 
@@ -71,7 +118,10 @@ public class AssistidoController {
     ) {
         Assistido assistido = service.updateAssistido(id, request);
 
-        AssistidoResponse response = mapper.toResponse(assistido);
+        AssistidoResponse response = mapper.toResponse(
+                assistido,
+                service.isAptoPeloCriterioDeRenda(assistido.getRendaMensal())
+        );
 
         return ResponseEntity.ok(response);
     }
