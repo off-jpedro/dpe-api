@@ -111,6 +111,76 @@ public class AssistidoController {
         return ResponseEntity.ok(response);
     }
 
+
+    @GetMapping("/inativos")
+    public ResponseEntity<Page<AssistidoResponse>> buscarAssistidosInativos(
+
+            @RequestParam(required = false) String nome,
+
+            @RequestParam(required = false) String cpf,
+
+            @RequestParam(required = false) String email,
+
+            @RequestParam(required = false) String nacionalidade,
+
+            @RequestParam(required = false) String cidade,
+
+            @RequestParam(required = false) Boolean situacaoDeRua,
+
+            @PageableDefault(
+                    size = 10,
+                    sort = "nomeCompleto",
+                    direction = Sort.Direction.ASC
+            ) Pageable pageable
+
+    ) {
+        Page<Assistido> pagina = service.buscarAssistidosInativos(
+                nome,
+                cpf,
+                email,
+                nacionalidade,
+                cidade,
+                situacaoDeRua,
+                pageable
+        );
+
+        Page<AssistidoResponse> response = pagina.map(assistido ->
+                mapper.toResponse(
+                        assistido,
+                        service.isAptoPeloCriterioDeRenda(
+                                assistido.getRendaMensal()
+                        )
+                )
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/todos")
+    public Page<AssistidoResponse> buscarTodosAssistidos(
+            @RequestParam(required = false) String nome,
+            @RequestParam(required = false) String cpf,
+            @RequestParam(required = false) String email,
+            @RequestParam(required = false) String nacionalidade,
+            @RequestParam(required = false) String cidade,
+            @RequestParam(required = false) Boolean situacaoDeRua,
+            @PageableDefault(
+                    size = 10,
+                    sort = "nomeCompleto",
+                    direction = Sort.Direction.ASC
+            ) Pageable pageable
+    ) {
+        return service.buscarTodosAssistidos(
+                nome,
+                cpf,
+                email,
+                nacionalidade,
+                cidade,
+                situacaoDeRua,
+                pageable
+        );
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<AssistidoResponse> updateAssistido(
             @PathVariable UUID id,
@@ -134,4 +204,14 @@ public class AssistidoController {
 
         return ResponseEntity.noContent().build();
     }
+
+    @DeleteMapping("/{id}/permanente")
+    public ResponseEntity<Void> excluirPermanentemente(
+            @PathVariable UUID id
+    ) {
+        service.excluirPermanentemente(id);
+
+        return ResponseEntity.noContent().build();
+    }
+
 }

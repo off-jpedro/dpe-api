@@ -1,8 +1,9 @@
-
 package com.example.dpe.service;
 
 import com.example.dpe.config.RegrasAtendimentoProperties;
+import com.example.dpe.dto.AssistidoResponse;
 import com.example.dpe.dto.CreateAssistidoRequest;
+import com.example.dpe.dto.EnderecoResponse;
 import com.example.dpe.dto.UpdateAssistidoRequest;
 import com.example.dpe.entity.Assistido;
 import com.example.dpe.exception.AssistidoNaoEncontradoException;
@@ -16,7 +17,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -89,6 +89,78 @@ public class AssistidoService {
         );
     }
 
+
+    public Page<Assistido> buscarAssistidosInativos(
+            String nome,
+            String cpf,
+            String email,
+            String nacionalidade,
+            String cidade,
+            Boolean situacaoDeRua,
+            Pageable pageable
+    ) {
+        return repository.buscarAssistidosInativos(
+                normalizarFiltro(nome),
+                normalizarFiltro(cpf),
+                normalizarFiltro(email),
+                normalizarFiltro(nacionalidade),
+                normalizarFiltro(cidade),
+                situacaoDeRua,
+                pageable
+        );
+    }
+
+    private AssistidoResponse toResponse(Assistido assistido) {
+        return new AssistidoResponse(
+                assistido.getId(),
+                assistido.getNomeCompleto(),
+                assistido.getCpf(),
+                assistido.getDataNascimento(),
+                assistido.getTelefonePrincipal(),
+                assistido.getRendaMensal(),
+                assistido.getEmail(),
+                assistido.getNacionalidade(),
+                assistido.getSituacaoDeRua(),
+                assistido.getEndereco() != null
+                        ? new EnderecoResponse(
+                        assistido.getEndereco().getLogradouro(),
+                        assistido.getEndereco().getNumero(),
+                        assistido.getEndereco().getComplemento(),
+                        assistido.getEndereco().getBairro(),
+                        assistido.getEndereco().getCidade(),
+                        assistido.getEndereco().getEstado(),
+                        assistido.getEndereco().getCep()
+                )
+                        : null,
+                assistido.isAtivo(),
+                isAptoPeloCriterioDeRenda(assistido.getRendaMensal()),
+                assistido.getCreatedAt()
+        );
+    }
+
+    public Page<AssistidoResponse> buscarTodosAssistidos(
+            String nome,
+            String cpf,
+            String email,
+            String nacionalidade,
+            String cidade,
+            Boolean situacaoDeRua,
+            Pageable pageable
+    ) {
+        Page<Assistido> assistidos = repository.buscarTodosAssistidos(
+                normalizarFiltro(nome),
+                normalizarFiltro(cpf),
+                normalizarFiltro(email),
+                normalizarFiltro(nacionalidade),
+                normalizarFiltro(cidade),
+                situacaoDeRua,
+                pageable
+        );
+
+        return assistidos.map(this::toResponse);
+    }
+
+
     private String normalizarFiltro(String filtro) {
         if (filtro == null || filtro.isBlank()) {
             return "";
@@ -132,6 +204,20 @@ public class AssistidoService {
 
         repository.save(assistido);
     }
+
+
+    @Transactional
+    public void excluirPermanentemente(UUID id) {
+        Assistido assistido = repository.findByIdAndAtivoFalse(id)
+                .orElseThrow(() ->
+                        new AssistidoNaoEncontradoException(
+                                "Assistido inativo não encontrado."
+                        )
+                );
+
+        repository.delete(assistido);
+    }
+
 
     public boolean isAptoPeloCriterioDeRenda(BigDecimal rendaMensal) {
 

@@ -2,12 +2,7 @@ package com.example.dpe.dto;
 
 import com.example.dpe.validation.CPF;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.DecimalMin;
-import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -32,6 +27,7 @@ public record CreateAssistidoRequest(
 
         @NotNull
         @DecimalMin("0.00")
+        @DecimalMax("9999999999.99")
         @Digits(integer = 10, fraction = 2)
         BigDecimal rendaMensal,
 

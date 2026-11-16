@@ -80,4 +80,133 @@ public interface AssistidoRepository extends JpaRepository<Assistido, UUID> {
             Pageable pageable
     );
 
+
+    @Query(
+            value = """
+            SELECT a FROM Assistido a
+            WHERE a.ativo = false
+
+            AND (:nome = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.nomeCompleto)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nome, '%')) AS String))
+
+            AND (:cpf = '' OR a.cpf = :cpf)
+
+            AND (:email = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.email)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :email, '%')) AS String))
+
+            AND (:nacionalidade = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.nacionalidade)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nacionalidade, '%')) AS String))
+
+            AND (:cidade = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.endereco.cidade)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :cidade, '%')) AS String))
+
+            AND (:situacaoDeRua IS NULL OR
+                a.situacaoDeRua = :situacaoDeRua)
+            """,
+
+            countQuery = """
+            SELECT COUNT(a) FROM Assistido a
+            WHERE a.ativo = false
+
+            AND (:nome = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.nomeCompleto)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nome, '%')) AS String))
+
+            AND (:cpf = '' OR a.cpf = :cpf)
+
+            AND (:email = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.email)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :email, '%')) AS String))
+
+            AND (:nacionalidade = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.nacionalidade)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nacionalidade, '%')) AS String))
+
+            AND (:cidade = '' OR
+                CAST(FUNCTION('unaccent', LOWER(a.endereco.cidade)) AS String)
+                LIKE CAST(FUNCTION('unaccent', CONCAT('%', :cidade, '%')) AS String))
+
+            AND (:situacaoDeRua IS NULL OR
+                a.situacaoDeRua = :situacaoDeRua)
+            """
+    )
+    Page<Assistido> buscarAssistidosInativos(
+            @Param("nome") String nome,
+            @Param("cpf") String cpf,
+            @Param("email") String email,
+            @Param("nacionalidade") String nacionalidade,
+            @Param("cidade") String cidade,
+            @Param("situacaoDeRua") Boolean situacaoDeRua,
+            Pageable pageable
+    );
+
+
+    Optional<Assistido> findByIdAndAtivoFalse(UUID id);
+
+    void delete(Assistido assistido);
+
+    @Query(
+            value = """
+            SELECT a FROM Assistido a
+            WHERE
+                (:nome = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.nomeCompleto)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nome, '%')) AS String))
+
+                AND (:cpf = '' OR a.cpf = :cpf)
+
+                AND (:email = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.email)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :email, '%')) AS String))
+
+                AND (:nacionalidade = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.nacionalidade)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nacionalidade, '%')) AS String))
+
+                AND (:cidade = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.endereco.cidade)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :cidade, '%')) AS String))
+
+                AND (:situacaoDeRua IS NULL OR
+                    a.situacaoDeRua = :situacaoDeRua)
+            """,
+
+            countQuery = """
+            SELECT COUNT(a) FROM Assistido a
+            WHERE
+                (:nome = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.nomeCompleto)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nome, '%')) AS String))
+
+                AND (:cpf = '' OR a.cpf = :cpf)
+
+                AND (:email = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.email)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :email, '%')) AS String))
+
+                AND (:nacionalidade = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.nacionalidade)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :nacionalidade, '%')) AS String))
+
+                AND (:cidade = '' OR
+                    CAST(FUNCTION('unaccent', LOWER(a.endereco.cidade)) AS String)
+                    LIKE CAST(FUNCTION('unaccent', CONCAT('%', :cidade, '%')) AS String))
+
+                AND (:situacaoDeRua IS NULL OR
+                    a.situacaoDeRua = :situacaoDeRua)
+            """
+    )
+    Page<Assistido> buscarTodosAssistidos(
+            @Param("nome") String nome,
+            @Param("cpf") String cpf,
+            @Param("email") String email,
+            @Param("nacionalidade") String nacionalidade,
+            @Param("cidade") String cidade,
+            @Param("situacaoDeRua") Boolean situacaoDeRua,
+            Pageable pageable
+    );
 }
